@@ -60,7 +60,7 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'DockerHub-', toolName: 'docker') {
+                    withDockerRegistry(credentialsId: 'DockerHub-cred', toolName: 'docker') {
                         sh ''' 
                         echo "Building Docker image..."
                         docker build --no-cache -t vamsichamarthi/bms:latest -f bookmyshow-app/Dockerfile bookmyshow-app
