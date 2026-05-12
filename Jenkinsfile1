@@ -16,7 +16,7 @@ pipeline {
         }
         stage('Checkout from Git') {
             steps {
-                git branch: 'main', url: 'https://github.com/KastroVKiran/Book-My-Show.git'
+                git branch: 'main', url: 'https://github.com/CVN9696/Book-My-Show.git'
                 sh 'ls -la'  // Verify files after checkout
             }
         }
@@ -33,7 +33,7 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 script {
-                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token'
+                    waitForQualityGate abortPipeline: false, credentialsId: 'sonarqube'
                 }
             }
         }
@@ -52,12 +52,7 @@ pipeline {
                 '''
             }
         }
-        stage('OWASP FS Scan') {
-            steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
+        
         stage('Trivy FS Scan') {
             steps {
                 sh 'trivy fs . > trivyfs.txt'
@@ -66,13 +61,13 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
+                    withDockerRegistry(credentialsId: 'DockerHub-', toolName: 'docker') {
                         sh ''' 
                         echo "Building Docker image..."
-                        docker build --no-cache -t kastrov/bms:latest -f bookmyshow-app/Dockerfile bookmyshow-app
+                        docker build --no-cache -t vamsichamarthi/bms:latest -f bookmyshow-app/Dockerfile bookmyshow-app
 
                         echo "Pushing Docker image to registry..."
-                        docker push kastrov/bms:latest
+                        docker push vamsichamarthi/bms:latest
                         '''
                     }
                 }
@@ -86,7 +81,7 @@ pipeline {
                 docker rm bms || true
 
                 echo "Running new container on port 3000..."
-                docker run -d --restart=always --name bms -p 3000:3000 kastrov/bms:latest
+                docker run -d --restart=always --name bms -p 3000:3000 vamsichamarthi/bms:latest
 
                 echo "Checking running containers..."
                 docker ps -a
@@ -100,13 +95,19 @@ pipeline {
     }
     post {
         always {
-            emailext attachLog: true,
-                subject: "'${currentBuild.result}'",
-                body: "Project: ${env.JOB_NAME}<br/>" +
-                      "Build Number: ${env.BUILD_NUMBER}<br/>" +
-                      "URL: ${env.BUILD_URL}<br/>",
-                to: 'kastrokiran@gmail.com',
+            emailext(
+                attachLog: true,
+                subject: "${currentBuild.result}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                    <h3>Jenkins Test Mail</h3>
+                    <p>Project: ${env.JOB_NAME}</p>
+                    <p>Build Number: ${env.BUILD_NUMBER}</p>
+                    <p>URL: ${env.BUILD_URL}</p>
+                """,
+                to: 'vamsichamarthi556@gmail.com',
                 attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
+            )
         }
     }
 }
+
